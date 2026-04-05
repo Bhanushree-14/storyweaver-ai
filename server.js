@@ -48,14 +48,15 @@ app.post('/api/login', async (req, res) => {
   res.json({ token, user: { ...user, password: undefined, fullName: `${user.firstName} ${user.lastName}` } });
 });
 
-// Groq AI - IMPROVED for LONGER CONTINUATIONS
-const groq = new Groq({ apiKey: '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' });
+// Groq AI - Uses Environment Variable for Security
+const groq = new Groq({ 
+    apiKey: process.env.GROQ_API_KEY 
+});
 
 app.post('/api/generate', async (req, res) => {
   const { story, emotions } = req.body;
   if (!story) return res.status(400).json({ error: 'No story' });
   
-  // Create emotion-based prompt
   let emotionGuide = '';
   if (emotions && emotions.length > 0) {
     emotionGuide = `The continuation should have a ${emotions.join(', ')} tone.`;
@@ -96,7 +97,6 @@ The continuation should be a complete narrative that flows from the user's begin
     
     let endings = parsed.endings || [];
     
-    // If only one ending, duplicate it with variations for the 5 options
     if (endings.length === 1) {
       const originalEnding = endings[0].text;
       endings = [
@@ -108,9 +108,8 @@ The continuation should be a complete narrative that flows from the user's begin
       ];
     }
     
-    // Ensure we have exactly 5 endings
     while (endings.length < 5) {
-      endings.push({ text: `✨ Continuation ${endings.length + 1}: ${story.substring(0, 100)}... The story reached a beautiful conclusion where everything came together perfectly. Characters grew, lessons were learned, and the journey left a lasting impact on all who witnessed it. ✨` });
+      endings.push({ text: `✨ Continuation ${endings.length + 1}: ${story.substring(0, 100)}... The story reached a beautiful conclusion.` });
     }
     
     console.log(`✅ Generated ${endings.length} continuations`);
@@ -118,19 +117,12 @@ The continuation should be a complete narrative that flows from the user's begin
     
   } catch (error) {
     console.error('❌ Groq Error:', error.message);
-    
-    // Fallback - Generate long, creative continuations
     const fallbackEndings = [];
-    const storyPreview = story.substring(0, 150);
-    const emotionsList = emotions && emotions.length > 0 ? emotions : ['adventurous', 'heartwarming', 'exciting'];
-    
     for (let i = 0; i < 5; i++) {
-      const emotion = emotionsList[i % emotionsList.length];
       fallbackEndings.push({
-        text: `✨ ${emotion.toUpperCase()} CONTINUATION ✨\n\n"${storyPreview}..."\n\nWhat followed was an incredible journey. The characters faced challenges, grew stronger, and discovered truths about themselves they never knew existed. Along the way, friendships were forged, secrets were revealed, and destinies were fulfilled.\n\nIn the end, it wasn't just about the destination—it was about every moment, every choice, and every heartbeat that led them there. And as the final page turned, one thing became certain: this was only the beginning of something truly magnificent. ✨`
+        text: `✨ FALLBACK CONTINUATION ✨\n\nYour story continues with grace and wonder. Despite the technical hiccup, the narrative journey remains bright. ✨`
       });
     }
-    
     res.json({ endings: fallbackEndings });
   }
 });
@@ -173,13 +165,8 @@ app.get('/api/writers', (req, res) => {
   const writerData = users.filter(u => u.role === 'writer' || u.role === 'both').map(w => {
     const writerStories = stories.filter(s => s.authorId === w.id);
     return { 
-      id: w.id, 
-      name: `${w.firstName} ${w.lastName}`, 
-      avatar: w.avatar, 
-      city: w.city, 
-      country: w.country, 
-      storyCount: writerStories.length, 
-      genres: [...new Set(writerStories.flatMap(s => s.emotions || []))] 
+      id: w.id, name: `${w.firstName} ${w.lastName}`, avatar: w.avatar, city: w.city, country: w.country, 
+      storyCount: writerStories.length, genres: [...new Set(writerStories.flatMap(s => s.emotions || []))] 
     };
   });
   res.json(writerData);
@@ -196,11 +183,5 @@ app.get('/api/health', (req, res) => {
 
 const PORT = 3000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n✅ ========================================`);
-  console.log(`✅ STORYWEAVER AI IS RUNNING!`);
-  console.log(`✅ ========================================`);
-  console.log(`📍 Server: http://localhost:${PORT}`);
-  console.log(`📍 Health: http://localhost:${PORT}/api/health`);
-  console.log(`\n🎯 AI will generate LONG story continuations!`);
-  console.log(`💡 Female voice is now enabled!\n`);
+  console.log(`\n✅ STORYWEAVER AI RUNNING AT http://localhost:${PORT}`);
 });
